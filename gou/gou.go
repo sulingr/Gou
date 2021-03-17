@@ -1,23 +1,60 @@
 package gou
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 )
 
-type HandlerFunc func(http.ResponseWriter, *http.Request)
+type HandlerFunc func(*Context)
 
 type Engine struct {
-	router map[string]HandlerFunc
+	*RouterTeam
+	router *router
+	teams  []*RouterTeam //存储所有路由分组
+}
+
+type RouterTeam struct {
+	prefix      string
+	middlewares []HandlerFunc //中间件支持
+	parent      *RouterTeam   //支持继承
+	engine      *Engine       //Engine接口支持
 }
 
 func New() *Engine {
-	return &Engine{router: make(map[string]HandlerFunc)}
+	engine := &Engine{router: newRouter()}
+	engine.RouterTeam = &RouterTeam{engine: engine}
+	engine.teams = []*RouterTeam{engine.RouterTeam}
+	return engine
+}
+
+func (team *RouterTeam) Team(prefix string) *RouterTeam {
+	engine := team.engine
+	newTeam := &RouterTeam{
+		prefix: team.prefix + prefix,
+		parent: team,
+		engine: engine,
+	}
+	engine.teams = append(engine.teams, newTeam)
+	return newTeam
+}
+
+func (team *RouterTeam) addRoute(method string, comp string, handler HandlerFunc) {
+	pattern := team.prefix + comp
+	log.Printf("Route %4s - %s", method, pattern)
+	team.engine.router.addRoute(method, pattern, handler)
+}
+
+func (team *RouterTeam) GET(pattern string, handler HandlerFunc) {
+	team.addRoute("GET", pattern, handler)
+}
+
+func (team *RouterTeam) POST(pattern string, handler HandlerFunc) {
+	team.addRoute("POST", pattern, handler)
 }
 
 func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {
-	key := method + "-" + pattern
-	engine.router[key] = handler
+	log.Printf("Route %4s - %s", method, pattern)
+	engine.router.addRoute(method, pattern, handler)
 }
 
 func (engine *Engine) GET(pattern string, handler HandlerFunc) {
@@ -33,10 +70,6 @@ func (engine *Engine) Run(addr string) (err error) {
 }
 
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	key := r.Method + "-" + r.URL.Path
-	if handler, ok := engine.router[key]; ok {
-		handler(w, r)
-	} else {
-		fmt.Fprintf(w, "404 NOT FOUND: %s\n", r.URL)
-	}
+	c := newContext(w, r)
+	engine.router.handle(c)
 }
