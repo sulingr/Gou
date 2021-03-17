@@ -16,6 +16,9 @@ type Context struct {
 	Params map[string]string
 	//响应信息
 	StatusCode int
+	//中间件
+	handlers []HandlerFunc
+	index    int //记录当前执行到第几个中间件
 }
 
 func newContext(w http.ResponseWriter, req *http.Request) *Context {
@@ -24,12 +27,21 @@ func newContext(w http.ResponseWriter, req *http.Request) *Context {
 		Req:    req,
 		Path:   req.URL.Path,
 		Method: req.Method,
+		index:  -1,
 	}
 }
 
 func (c *Context) Param(key string) string {
 	value, _ := c.Params[key]
 	return value
+}
+
+func (c *Context) Next() {
+	c.index++
+	s := len(c.handlers)
+	for ; c.index < s; c.index++ {
+		c.handlers[c.index](c)
+	}
 }
 
 func (c *Context) PostForm(key string) string {
@@ -47,6 +59,11 @@ func (c *Context) Status(code int) {
 
 func (c *Context) SetHeader(key string, value string) {
 	c.ReW.Header().Set(key, value)
+}
+
+func (c *Context) Fail(code int, err string) {
+	c.index = len(c.handlers)
+	c.JSON(code, map[string]interface{}{"message": err})
 }
 
 func (c *Context) String(code int, format string, values ...interface{}) {

@@ -3,6 +3,7 @@ package gou
 import (
 	"log"
 	"net/http"
+	"strings"
 )
 
 type HandlerFunc func(*Context)
@@ -52,6 +53,10 @@ func (team *RouterTeam) POST(pattern string, handler HandlerFunc) {
 	team.addRoute("POST", pattern, handler)
 }
 
+func (team *RouterTeam) Use(middlewares ...HandlerFunc) {
+	team.middlewares = append(team.middlewares, middlewares...)
+}
+
 func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {
 	log.Printf("Route %4s - %s", method, pattern)
 	engine.router.addRoute(method, pattern, handler)
@@ -70,6 +75,13 @@ func (engine *Engine) Run(addr string) (err error) {
 }
 
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var middlewares []HandlerFunc
+	for _, team := range engine.teams {
+		if strings.HasPrefix(r.URL.Path, team.prefix) {
+			middlewares = append(middlewares, team.middlewares...)
+		}
+	}
 	c := newContext(w, r)
+	c.handlers = middlewares
 	engine.router.handle(c)
 }
