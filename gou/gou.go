@@ -3,6 +3,7 @@ package gou
 import (
 	"log"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -55,6 +56,26 @@ func (team *RouterTeam) POST(pattern string, handler HandlerFunc) {
 
 func (team *RouterTeam) Use(middlewares ...HandlerFunc) {
 	team.middlewares = append(team.middlewares, middlewares...)
+}
+
+func (team *RouterTeam) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
+	absolutePath := path.Join(team.prefix, relativePath)
+	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
+	return func(c *Context) {
+		file := c.Param("filepath")
+		//判断文件存在和权限是否准许
+		if _, err := fs.Open(file); err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		fileServer.ServeHTTP(c.ReW, c.Req)
+	}
+}
+
+func (team *RouterTeam) Static(relativePath string, root string) {
+	handler := team.createStaticHandler(relativePath, http.Dir(root))
+	urlPattern := path.Join(relativePath, "/*filepath")
+	team.GET(urlPattern, handler)
 }
 
 func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {

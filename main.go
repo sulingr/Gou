@@ -16,6 +16,7 @@ func onlyForV2() gou.HandlerFunc {
 }
 func main() {
 	r := gou.New()
+	r.Static("/assets", "./static")
 	r.Use(gou.Logger())
 	r.GET("/index", func(c *gou.Context) {
 		c.HTML(http.StatusOK, "<h1>Index Page</h1>")
