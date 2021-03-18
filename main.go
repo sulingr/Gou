@@ -19,12 +19,12 @@ func main() {
 	r.Static("/assets", "./static")
 	r.Use(gou.Logger())
 	r.GET("/index", func(c *gou.Context) {
-		c.HTML(http.StatusOK, "<h1>Index Page</h1>")
+
 	})
 	v1 := r.Team("/v1")
 	{
 		v1.GET("/", func(c *gou.Context) {
-			c.HTML(http.StatusOK, "<h1>Hello Gou</h1>")
+
 		})
 
 		v1.GET("/hello", func(c *gou.Context) {
