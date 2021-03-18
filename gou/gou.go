@@ -1,6 +1,7 @@
 package gou
 
 import (
+	"html/template"
 	"log"
 	"net/http"
 	"path"
@@ -11,8 +12,10 @@ type HandlerFunc func(*Context)
 
 type Engine struct {
 	*RouterTeam
-	router *router
-	teams  []*RouterTeam //存储所有路由分组
+	router        *router
+	htmlTemplates *template.Template
+	funcmap       template.FuncMap
+	teams         []*RouterTeam //存储所有路由分组
 }
 
 type RouterTeam struct {
@@ -105,4 +108,12 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := newContext(w, r)
 	c.handlers = middlewares
 	engine.router.handle(c)
+}
+
+func (engine *Engine) SetFuncMap(funcmap template.FuncMap) {
+	engine.funcmap = funcmap
+}
+
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcmap).ParseGlob(pattern))
 }
