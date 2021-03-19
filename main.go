@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"gou"
+	"html/template"
 	"log"
 	"net/http"
 	"time"
@@ -14,12 +16,24 @@ func onlyForV2() gou.HandlerFunc {
 		log.Printf("[%d] %s in %v for group v2", c.StatusCode, c.Req.RequestURI, time.Since(t))
 	}
 }
+
+func FormatAsDate(t time.Time) string {
+	year, month, day := t.Date()
+	return fmt.Sprintf("%d-%02d-%02d", year, month, day)
+}
+
 func main() {
 	r := gou.New()
 	r.Static("/assets", "./static")
 	r.Use(gou.Logger())
-	r.GET("/index", func(c *gou.Context) {
+	r.SetFuncMap(template.FuncMap{
+		"FormatAsDate": FormatAsDate,
+	})
+	r.LoadHTMLGlob("template/*")
+	r.Static("/assets", "./static")
 
+	r.GET("/index", func(c *gou.Context) {
+		c.HTML(http.StatusOK, "css.tmpl", nil)
 	})
 	v1 := r.Team("/v1")
 	{
